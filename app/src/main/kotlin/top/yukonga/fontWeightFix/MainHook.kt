@@ -4,6 +4,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.widget.TextView
 import com.github.kyuubiran.ezxhelper.ClassUtils.loadClassOrNull
+import com.github.kyuubiran.ezxhelper.ClassUtils.loadFirstClassOrNull
 import com.github.kyuubiran.ezxhelper.EzXHelper
 import com.github.kyuubiran.ezxhelper.HookFactory.`-Static`.createAfterHook
 import com.github.kyuubiran.ezxhelper.HookFactory.`-Static`.createBeforeHook
@@ -22,26 +23,46 @@ class MainHook : IXposedHookLoadPackage {
             "com.android.systemui" -> {
                 try {
                     val miuiConfigsClass = loadClassOrNull("com.miui.utils.configs.MiuiConfigs")
-                    val mobileTypeDrawableClass = loadClassOrNull("com.android.systemui.statusbar.views.MobileTypeDrawable")
-                    val miuiNotificationHeaderViewClass = loadClassOrNull("com.android.systemui.qs.MiuiNotificationHeaderView")
+                    val mobileTypeDrawableClass = loadFirstClassOrNull(
+                        "com.miui.systemui.statusbar.views.MobileTypeDrawable",
+                        "com.android.systemui.statusbar.views.MobileTypeDrawable"
+                    )
+                    val miuiNotificationHeaderViewClass =
+                        loadClassOrNull("com.android.systemui.qs.MiuiNotificationHeaderView")
 
-                    XposedHelpers.setStaticObjectField(miuiConfigsClass, "sMiproTypeface", miFontTypeface(430))
-                    XposedHelpers.setStaticObjectField(mobileTypeDrawableClass, "sMiproTypeface", miFontTypeface(550))
+                    XposedHelpers.setStaticObjectField(
+                        miuiConfigsClass,
+                        "sMiproTypeface",
+                        miFontTypeface(430)
+                    )
+                    XposedHelpers.setStaticObjectField(
+                        mobileTypeDrawableClass,
+                        "sMiproTypeface",
+                        miFontTypeface(550)
+                    )
 
-                    miuiNotificationHeaderViewClass?.methodFinder()?.filter { name.startsWith("updateResources") }?.first()?.createAfterHook {
+                    miuiNotificationHeaderViewClass?.methodFinder()
+                        ?.filter { name.startsWith("updateResources") }?.first()?.createAfterHook {
                         it.thisObject.objectHelper().setObject("usingMiPro", true)
                     }
 
-                    miuiConfigsClass?.methodFinder()?.filterByName("setMiuiStatusBarTypeface")?.first()?.createBeforeHook {
+                    miuiConfigsClass?.methodFinder()?.filter {
+                        "setMiuiStatusBarTypeface" == name || "applyStatusBarTypeface" == name
+                    }?.first()?.createBeforeHook {
                         @Suppress("UNCHECKED_CAST")
-                        val textView = it.args[0] as Array<TextView>
+                        val textView: Array<TextView> = when (it.method.name) {
+                            "setMiuiStatusBarTypeface" -> it.args[0] as Array<TextView>
+                            "applyStatusBarTypeface" -> it.args[1] as Array<TextView>
+                            else -> return@createBeforeHook
+                        }
                         textView.forEach { tv ->
                             tv.typeface = miFontTypeface(430)
                         }
                         it.result = null
                     }
 
-                    mobileTypeDrawableClass?.methodFinder()?.filterByName("setMiuiStatusBarTypeface")?.first()?.createBeforeHook {
+                    mobileTypeDrawableClass?.methodFinder()
+                        ?.filterByName("setMiuiStatusBarTypeface")?.first()?.createBeforeHook {
                         @Suppress("UNCHECKED_CAST")
                         val paint = it.args[0] as Array<Paint>
                         paint.forEach { p ->
@@ -59,4 +80,5 @@ class MainHook : IXposedHookLoadPackage {
     }
 }
 
-fun miFontTypeface(wght: Int): Typeface = Typeface.Builder("/system/fonts/MiSansVF.ttf").setFontVariationSettings("'wght' $wght").build()
+fun miFontTypeface(wght: Int): Typeface =
+    Typeface.Builder("/system/fonts/MiSansVF.ttf").setFontVariationSettings("'wght' $wght").build()
