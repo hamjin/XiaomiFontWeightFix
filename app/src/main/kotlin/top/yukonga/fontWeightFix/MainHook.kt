@@ -12,6 +12,8 @@ import com.github.kyuubiran.ezxhelper.Log
 import com.github.kyuubiran.ezxhelper.ObjectHelper.Companion.objectHelper
 import com.github.kyuubiran.ezxhelper.finders.MethodFinder.`-Static`.methodFinder
 import de.robv.android.xposed.IXposedHookLoadPackage
+import de.robv.android.xposed.XC_MethodHook
+import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.callbacks.XC_LoadPackage
 import org.lsposed.hiddenapibypass.HiddenApiBypass
@@ -103,6 +105,50 @@ class MainHook : IXposedHookLoadPackage {
                             }
                             it.result = null
                         }
+
+                    if (osVersion >= 3) {
+                        val notificationHeaderExpandControllerClass = XposedHelpers.findClass(
+                            "com.android.systemui.controlcenter.shade.NotificationHeaderExpandController",
+                            lpparam.classLoader
+                        )
+
+                        XposedHelpers.setStaticObjectField(
+                            notificationHeaderExpandControllerClass,
+                            "MI_PRO_TYPEFACE",
+                            miFontTypeface(700)
+                        )
+
+                        XposedHelpers.setStaticObjectField(
+                            notificationHeaderExpandControllerClass,
+                            "sMiproTypeface",
+                            miFontTypeface(700)
+                        )
+
+                        XposedBridge.hookAllConstructors(
+                            notificationHeaderExpandControllerClass,
+                            object : XC_MethodHook() {
+                                override fun afterHookedMethod(param: MethodHookParam?) {
+                                    super.afterHookedMethod(param)
+                                    XposedHelpers.setObjectField(
+                                        param?.thisObject,
+                                        "miproNormal",
+                                        miFontTypeface(600)
+                                    )
+                                    XposedHelpers.setObjectField(
+                                        param?.thisObject,
+                                        "miproMedium",
+                                        miFontTypeface(700)
+                                    )
+                                    val array : ArrayList<Typeface> = ArrayList(10)
+                                    array.add(miFontTypeface(600))
+                                    for (i in 1..8){
+                                        array.add(miFontTypeface(600 + 100 * i / 9))
+                                    }
+                                    array.add(miFontTypeface(700))
+                                    XposedHelpers.setObjectField(param?.thisObject, "typefaces", array)
+                                }
+                            })
+                    }
                 } catch (t: Throwable) {
                     Log.ex(t)
                 }
