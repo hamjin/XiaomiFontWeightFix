@@ -10,11 +10,11 @@ plugins {
 
 android {
     namespace = "top.yukonga.fontWeightFix"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
         applicationId = namespace
         minSdk = 34
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 103
         versionName = "1.0.3"
     }
