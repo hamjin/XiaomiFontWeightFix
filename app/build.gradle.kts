@@ -73,4 +73,5 @@ android {
 dependencies {
     compileOnly(libs.xposed)
     implementation(libs.ezXHelper)
+    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:+")
 }
